@@ -10,6 +10,8 @@ const env = (name: string) => Deno.env.get(name) ?? '';
 const SUPABASE_URL = env('SUPABASE_URL');
 const SERVICE_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 const MODEL = env('GEMINI_MODEL') || 'gemini-3.8-flash';
+// Gdy główny model jest przeciążony (503) albo skończył mu się darmowy limit (429), próbujemy tańszych.
+const FALLBACK_MODELS = (env('GEMINI_FALLBACK_MODELS') || 'gemini-3.6-flash,gemini-3.5-flash-lite').split(',').map(m => m.trim()).filter(Boolean);
 const GEMINI_BASE = env('GEMINI_BASE_URL') || 'https://generativelanguage.googleapis.com'; // zmiana tylko do testów
 
 const CORS = {
@@ -86,7 +88,7 @@ async function askGemini(text: string, images: { bytes: Uint8Array; mimeType: st
     { text: text ? `Opis z Facebooka:\n${text}` : 'Odczytaj przepis z załączonych zrzutów ekranu.' },
     ...images.map(image => ({ inlineData: { mimeType: image.mimeType, data: base64(image.bytes) } }))
   ];
-  const call = (withSchema: boolean) => fetch(`${GEMINI_BASE}/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`, {
+  const call = (model: string, withSchema: boolean, ms: number) => fetch(`${GEMINI_BASE}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({
@@ -94,14 +96,29 @@ async function askGemini(text: string, images: { bytes: Uint8Array; mimeType: st
       contents: [{ role: 'user', parts }],
       generationConfig: { responseMimeType: 'application/json', ...(withSchema ? { responseJsonSchema: SCHEMA } : {}), maxOutputTokens: 32768 }
     }),
-    signal: AbortSignal.timeout(120000)
+    signal: AbortSignal.timeout(ms)
   });
-  let response = await call(true);
-  // Gdyby model nie przyjął schematu, próbujemy samego JSON-a (wynik i tak jest czyszczony).
-  if (response.status === 400) response = await call(false);
-  if (response.status === 429) throw new HttpError(429, 'provider_limit');
-  if (!response.ok) {
-    console.error('gemini', response.status, (await response.text()).slice(0, 500));
+  // Funkcja ma ok. 150 s: jedna próba najwyżej 60 s, wszystkie razem najwyżej 130 s.
+  const deadline = Date.now() + 130000;
+  let response: Response | null = null;
+  for (const model of [MODEL, ...FALLBACK_MODELS.filter(m => m !== MODEL)]) {
+    const left = deadline - Date.now();
+    if (left < 10000) break;
+    try {
+      response = await call(model, true, Math.min(left, 60000));
+      // Gdyby model nie przyjął schematu, próbujemy samego JSON-a (wynik i tak jest czyszczony).
+      if (response.status === 400) response = await call(model, false, Math.max(5000, deadline - Date.now()));
+    } catch (error) {
+      console.error('gemini', model, String(error));
+      response = null;
+      continue;
+    }
+    if (response.ok) break;
+    console.error('gemini', model, response.status, (await response.text()).slice(0, 300));
+    if (![429, 500, 502, 503, 504].includes(response.status)) break;
+  }
+  if (!response?.ok) {
+    if (response?.status === 429) throw new HttpError(429, 'provider_limit');
     throw new HttpError(502, 'provider_error');
   }
   const answer = await response.json();
