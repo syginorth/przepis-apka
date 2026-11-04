@@ -16,8 +16,8 @@
     if (/Email not confirmed/i.test(text)) return new Error('Najpierw potwierdź adres e-mail (link w wiadomości od Supabase).');
     if (/already registered/i.test(text)) return new Error('To konto już istnieje. Zaloguj się.');
     if (/Password should be/i.test(text)) return new Error('Hasło musi mieć co najmniej 6 znaków.');
-    if (/wrong code/i.test(text)) return new Error('Nie znam takiego kodu rodziny. Sprawdź litery.');
-    if (/already in family/i.test(text)) return new Error('To konto już należy do rodziny.');
+    if (/wrong code/i.test(text)) return new Error('Nie znam takiego kodu. Sprawdź litery.');
+    if (/already in family/i.test(text)) return new Error('To konto jest już połączone z książką przepisów.');
     if (/Failed to fetch|NetworkError|Load failed/i.test(text)) return new Error('Brak połączenia z internetem.');
     return error instanceof Error ? error : new Error(text || 'Coś poszło nie tak.');
   }

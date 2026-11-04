@@ -169,7 +169,7 @@ async function readRecipe() {
   }
   if (!S.canRead) {
     try {
-      if (!text.trim()) throw new Error('Odczyt zrzutów działa po zalogowaniu do rodziny. Możesz wpisać przepis ręcznie.');
+      if (!text.trim()) throw new Error('Odczyt zrzutów działa po zalogowaniu (Ustawienia). Możesz wpisać przepis ręcznie.');
       openEditor({ ...parseText(text), link, images });
       toast('Uporządkowałam tekst. Sprawdź wynik.');
     } catch (error) { S.error = error.message; render(); }
@@ -284,7 +284,7 @@ async function refreshAccount() {
     try {
       S.family = await MamaCloud.family();
     } catch {
-      // bez internetu korzystamy z zapamiętanej rodziny
+      // bez internetu korzystamy z zapamiętanej książki
       const sync = await store.getMeta('sync', {});
       if (sync.user === S.user.id && sync.household) S.family = { id: sync.household, join_code: sync.code || '' };
     }
@@ -317,14 +317,14 @@ async function login(form, mode) {
   }
   await refreshAccount();
   render();
-  toast(S.family ? '✓ Zalogowano. Pobieram przepisy rodziny…' : '✓ Zalogowano. Teraz dołącz do rodziny.');
+  toast(S.family ? '✓ Zalogowano. Pobieram przepisy…' : '✓ Zalogowano. Wpisz kod albo zacznij nową książkę.');
 }
 
 async function logout() {
   const pending = (await store.all('recipes')).concat(await store.all('shop')).filter(x => x.dirty).length;
   const message = pending
     ? `Na tym telefonie są niewysłane zmiany (${pending}). Po wylogowaniu znikną. Wylogować mimo to?`
-    : 'Wylogować? Przepisy zostaną w rodzinie i wrócą po ponownym zalogowaniu.';
+    : 'Wylogować? Przepisy zostaną zapisane i wrócą po ponownym zalogowaniu.';
   if (!(await ask(message, 'Wyloguj', pending > 0))) return;
   stopListening();
   await MamaCloud.signOut();
@@ -465,8 +465,8 @@ async function onClick(e) {
     case 'sync': S.syncStatus = 'Synchronizuję…'; render(); await synchronize(); render(); break;
     case 'shortcut': await showShortcutToken(); break;
     case 'create-family':
-      if (await ask('Założyć nową rodzinę? Druga osoba dołączy potem Twoim kodem.', 'Załóż')) {
-        await MamaCloud.createFamily('Przepisy Mamy'); await refreshAccount(); render(); toast('✓ Rodzina założona. Kod znajdziesz w Ustawieniach.');
+      if (await ask('Zacząć nową książkę przepisów? Druga osoba dołączy potem Twoim kodem z Ustawień.', 'Zacznij')) {
+        await MamaCloud.createFamily('Przepisy Mamy'); await refreshAccount(); render(); toast('✓ Gotowe. Kod dla drugiej osoby znajdziesz w Ustawieniach.');
       }
       break;
     case 'logout': await logout(); break;
@@ -489,7 +489,7 @@ async function onSubmit(e) {
       }
     }
     if (form.id === 'login') await login(form, button?.dataset.mode);
-    if (form.id === 'join') { await MamaCloud.joinFamily($('#code').value); await refreshAccount(); render(); toast('✓ Dołączono do rodziny.'); }
+    if (form.id === 'join') { await MamaCloud.joinFamily($('#code').value); await refreshAccount(); render(); toast('✓ Połączono. Pobieram przepisy…'); }
   } catch (error) {
     if (form.id === 'editor') { S.error = error.message; render(); } else toast(error.message);
   } finally {

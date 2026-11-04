@@ -111,7 +111,7 @@
       <input class="field" id="source" type="url" inputmode="url" value="${esc(f.link)}" placeholder="https://facebook.com/…">
       <div class="note">${S.canRead
         ? 'Po naciśnięciu „Odczytaj przepis” zrzuty i opis trafią do Google Gemini, które ułoży składniki i kroki. Zawsze sprawdź wynik przed zapisaniem.'
-        : 'Odczyt zrzutów działa po zalogowaniu do rodziny (Ustawienia). Wklejony opis uporządkuję na telefonie według nagłówków „Składniki” i „Przygotowanie”.'}</div>
+        : 'Odczyt zrzutów działa po zalogowaniu (Ustawienia). Wklejony opis uporządkuję na telefonie według nagłówków „Składniki” i „Przygotowanie”.'}</div>
       ${S.error ? `<p class="error" role="alert">${esc(S.error)}</p>` : ''}
       <button class="primary" data-action="read" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Przygotowuję zdjęcia…' : 'Odczytaj przepis'}</button>
       <button class="secondary" style="margin-top:12px" data-action="manual" ${S.busy ? 'disabled' : ''}>Wpisz przepis ręcznie</button>`;
@@ -190,7 +190,7 @@
     if (!S.user) {
       return `
         <section class="card">
-          <h2>Konto rodzinne</h2>
+          <h2>Logowanie</h2>
           <p>Zaloguj się, żeby przepisy i lista zakupów były wspólne na obu telefonach, a zrzuty odczytywały się same.</p>
           <form id="login">
             <label class="fieldlabel" for="email">E-mail</label>
@@ -205,22 +205,22 @@
     if (!S.family) {
       return `
         <section class="card">
-          <h2>Konto rodzinne</h2>
-          <p>Zalogowano jako ${esc(S.user.email)}. Dołącz do rodziny kodem od bliskiej osoby albo załóż nową rodzinę.</p>
+          <h2>Logowanie</h2>
+          <p>Zalogowano jako ${esc(S.user.email)}. Jeśli druga osoba już korzysta z aplikacji, wpisz kod z jej Ustawień, żeby mieć te same przepisy.</p>
           <form id="join">
-            <label class="fieldlabel" for="code">Kod rodziny</label>
+            <label class="fieldlabel" for="code">Kod</label>
             <input id="code" class="field" autocomplete="off" autocapitalize="characters" maxlength="6" required placeholder="np. A1B2C3">
             <button class="primary" style="margin-top:12px">Dołącz</button>
           </form>
-          <button class="secondary" style="margin-top:12px" data-action="create-family">Załóż nową rodzinę</button>
+          <button class="secondary" style="margin-top:12px" data-action="create-family">Jestem pierwsza — zacznij nową książkę</button>
           <button class="back" data-action="logout">Wyloguj</button>
         </section>`;
     }
     return `
       <section class="card">
-        <h2>Konto rodzinne</h2>
+        <h2>Logowanie</h2>
         <p>Zalogowano jako ${esc(S.user.email)}.<br>${S.syncStatus}</p>
-        <p class="muted">Kod rodziny dla drugiej osoby: <strong style="letter-spacing:2px">${esc(S.family.join_code)}</strong></p>
+        <p class="muted">Kod dla drugiej osoby: <strong style="letter-spacing:2px">${esc(S.family.join_code)}</strong></p>
         <button class="secondary" data-action="sync">Synchronizuj teraz</button>
         <button class="secondary" style="margin-top:12px" data-action="shortcut">📲 Połącz skrót „Zapisz przepis”</button>
         <button class="back" data-action="logout">Wyloguj</button>
