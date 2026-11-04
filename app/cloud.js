@@ -58,9 +58,11 @@
   async function callFunction(path, body) {
     const { data, error } = await client.functions.invoke(`przepis/${path}`, { body });
     if (error) {
-      let message = '';
-      try { message = (await error.context.json()).message; } catch {}
-      throw new Error(message || (/Failed to send|fetch/i.test(error.message) ? 'Brak połączenia z internetem.' : 'Nie udało się odczytać przepisu. Spróbuj ponownie.'));
+      let body = {};
+      try { body = await error.context.json(); } catch {}
+      const failure = new Error(body.message || (/Failed to send|fetch/i.test(error.message) ? 'Brak połączenia z internetem.' : 'Nie udało się odczytać przepisu. Spróbuj ponownie.'));
+      failure.code = body.code || '';
+      throw failure;
     }
     return data;
   }

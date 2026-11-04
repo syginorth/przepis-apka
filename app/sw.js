@@ -1,6 +1,6 @@
 'use strict';
 // Podnieś numer przy każdej zmianie plików aplikacji.
-const CACHE = 'przepisy-mamy-v10';
+const CACHE = 'przepisy-mamy-v11';
 const FILES = ['./', './index.html', './style.css', './config.js', './vendor/supabase-2.118.0.js', './core.js', './store.js', './sync.js', './cloud.js', './views.js', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {

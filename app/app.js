@@ -186,8 +186,16 @@ async function readRecipe() {
     openEditor({ title: d.title, minutes: d.minutes, minutesEstimated: d.minutesEstimated, ingredients: d.ingredients, steps: d.steps, tags: d.tags, emoji: d.emoji, warnings: d.warnings, link: result.link || link, images });
   } catch (error) {
     if (abort.signal.aborted) return;
+    // Bez klucza Gemini (lub po wyczerpaniu limitu) wklejony opis porządkujemy na telefonie.
+    if (['not_configured', 'provider_limit'].includes(error.code) && text.trim()) {
+      try {
+        openEditor({ ...parseText(text), link, images });
+        toast('Uporządkowałam tekst na telefonie. Sprawdź wynik.');
+        return;
+      } catch {}
+    }
     S.screen = 'add';
-    S.error = error.message;
+    S.error = error.code === 'not_configured' ? 'Odczyt zrzutów nie jest jeszcze włączony. Wklej opis albo wpisz przepis ręcznie.' : error.message;
     render();
   }
 }
