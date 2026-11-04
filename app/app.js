@@ -30,9 +30,10 @@ function toast(text) {
 async function ask(message, okLabel = 'Tak', danger = false) {
   return new Promise(resolve => {
     const dialog = document.createElement('dialog');
-    dialog.innerHTML = `<form method="dialog"><p>${esc(message)}</p><div class="actions"><button value="no" class="secondary">Anuluj</button><button value="yes" class="${danger ? 'danger' : 'primary'}">${esc(okLabel)}</button></div></form>`;
-    document.body.append(dialog);
+    dialog.innerHTML = `<p>${esc(message)}</p><div class="actions"><button type="button" value="no" class="secondary">Anuluj</button><button type="button" value="yes" class="${danger ? 'danger' : 'primary'}">${esc(okLabel)}</button></div>`;
+    dialog.addEventListener('click', e => { const b = e.target.closest('button'); if (b) dialog.close(b.value); });
     dialog.addEventListener('close', () => { dialog.remove(); resolve(dialog.returnValue === 'yes'); }, { once: true });
+    document.body.append(dialog);
     dialog.showModal();
   });
 }
@@ -475,8 +476,9 @@ async function onClick(e) {
 }
 
 async function onSubmit(e) {
-  e.preventDefault();
   const form = e.target;
+  if (form.closest('dialog')) return; // okienka potwierdzeń obsługują się same
+  e.preventDefault();
   const button = e.submitter || form.querySelector('button');
   if (button) button.disabled = true;
   try {
