@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#28583e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Przepisy Mamy">
+<meta name="description" content="Domowa książka kucharska i lista zakupów, także offline.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+<link rel="stylesheet" href="./style.css">
+<title>Przepisy Mamy</title>
+</head>
+<body>
+<a class="skip" href="#main">Przejdź do treści</a>
+<main id="main" tabindex="-1"><p>Otwieram Twoją książkę kucharską…</p></main>
+<nav id="nav" aria-label="Główna nawigacja"></nav>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<noscript>Do działania aplikacji potrzebny jest JavaScript.</noscript>
+<script src="./config.js"></script>
+<script src="./vendor/supabase-2.118.0.js"></script>
+<script src="./core.js"></script>
+<script src="./store.js"></script>
+<script src="./sync.js"></script>
+<script src="./cloud.js"></script>
+<script src="./views.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

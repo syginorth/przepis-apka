@@ -1,0 +1,5 @@
+project_id = "przepisy-mamy"
+
+[functions.przepis]
+# Skrót iOS loguje się własnym tokenem, więc funkcja sama sprawdza sesję lub token.
+verify_jwt = false
