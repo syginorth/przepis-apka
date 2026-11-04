@@ -1,7 +1,7 @@
 'use strict';
 // Podnieś numer przy każdej zmianie plików aplikacji.
-const CACHE = 'przepisy-mamy-v13';
-const FILES = ['./', './index.html', './style.css', './config.js', './vendor/supabase-2.118.0.js', './core.js', './store.js', './sync.js', './cloud.js', './views.js', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
+const CACHE = 'przepisy-mamy-v14';
+const FILES = ['./', './index.html', './style.css', './config.js', './vendor/supabase-2.118.0.js', './core.js', './store.js', './sync.js', './cloud.js', './ocr.js', './views.js', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
@@ -18,7 +18,13 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
   event.respondWith(
-    caches.match(event.request, { ignoreSearch: true }).then(cached => cached || fetch(event.request).catch(() =>
-      event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error()))
+    caches.match(event.request, { ignoreSearch: true }).then(cached => cached || fetch(event.request).then(response => {
+      // Program do odczytu tekstu (duży) zapamiętujemy dopiero, gdy będzie pierwszy raz potrzebny.
+      if (response.ok && url.pathname.includes('/vendor/tesseract-')) {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(event.request, copy));
+      }
+      return response;
+    }).catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error()))
   );
 });

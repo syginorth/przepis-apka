@@ -160,6 +160,30 @@ function openEditor(draft) {
 
 /* ---------- Dodawanie przepisu ---------- */
 
+async function imageBlob(hash) {
+  const image = await store.get('images', hash);
+  return new Blob([image.bytes], { type: image.type });
+}
+
+/** Zapas bez AI: tekst ze zrzutów odczytany na telefonie + wklejony opis, ułożone według nagłówków. */
+async function readOnPhone(abort, reason) {
+  const { text, link, images } = S.form;
+  let all = text;
+  if (images.length) {
+    S.loadingText = { title: 'Czytam tekst ze zrzutu…', body: `${reason} Za pierwszym razem trwa to dłużej.` };
+    go('loading');
+    const blobs = await Promise.all(images.map(imageBlob));
+    const ocr = await MamaOcr.readImages(blobs, progress => {
+      const el = document.querySelector('[data-progress]');
+      if (el) el.textContent = `${Math.round(progress * 100)}%`;
+    }, abort.signal);
+    all = [ocr, text].filter(t => t.trim()).join('\n');
+  }
+  if (abort.signal.aborted) return;
+  const draft = parseText(all);
+  openEditor({ ...draft, link, images, warnings: ['Odczytane bez AI. Sprawdź tytuł, składniki i kroki, zanim zapiszesz.'] });
+}
+
 async function readRecipe() {
   readAddForm();
   const { text, link, images } = S.form;
@@ -168,17 +192,21 @@ async function readRecipe() {
     render();
     return;
   }
-  if (!S.canRead) {
-    try {
-      if (!text.trim()) throw new Error('Odczyt zrzutów działa po zalogowaniu (Ustawienia). Możesz wpisać przepis ręcznie.');
-      openEditor({ ...parseText(text), link, images });
-      toast('Uporządkowałam tekst. Sprawdź wynik.');
-    } catch (error) { S.error = error.message; render(); }
-    return;
-  }
-  if (!navigator.onLine) { S.error = 'Brak internetu. Zrzuty są zapisane, spróbuj, gdy wróci połączenie.'; render(); return; }
-  go('loading');
   const abort = readAbort = new AbortController();
+  const fallback = async reason => {
+    try {
+      await readOnPhone(abort, reason);
+    } catch (error) {
+      if (abort.signal.aborted) return;
+      S.screen = 'add';
+      S.error = error.message === 'aborted' ? '' : error.message;
+      render();
+    }
+  };
+  if (!S.canRead) return fallback('Bez logowania odczytuję tekst na telefonie.');
+  if (!navigator.onLine) { S.error = 'Brak internetu. Zrzuty są zapisane, spróbuj, gdy wróci połączenie.'; render(); return; }
+  S.loadingText = null;
+  go('loading');
   try {
     const body = { text, link, images: await Promise.all(images.map(imageDataUrl)) };
     const result = await MamaCloud.readRecipe(body);
@@ -187,16 +215,12 @@ async function readRecipe() {
     openEditor({ title: d.title, minutes: d.minutes, minutesEstimated: d.minutesEstimated, ingredients: d.ingredients, steps: d.steps, tags: d.tags, emoji: d.emoji, warnings: d.warnings, link: result.link || link, images });
   } catch (error) {
     if (abort.signal.aborted) return;
-    // Bez klucza Gemini (lub po wyczerpaniu limitu) wklejony opis porządkujemy na telefonie.
-    if (['not_configured', 'provider_limit'].includes(error.code) && text.trim()) {
-      try {
-        openEditor({ ...parseText(text), link, images });
-        toast('Uporządkowałam tekst na telefonie. Sprawdź wynik.');
-        return;
-      } catch {}
+    // Gdy AI nie działa (brak klucza, limit, przeciążenie, brak odpowiedzi), czytamy na telefonie.
+    if (!error.code || ['not_configured', 'provider_limit', 'provider_error'].includes(error.code)) {
+      return fallback('AI teraz nie odpowiada, więc odczytuję tekst na telefonie.');
     }
     S.screen = 'add';
-    S.error = error.code === 'not_configured' ? 'Odczyt zrzutów nie jest jeszcze włączony. Wklej opis albo wpisz przepis ręcznie.' : error.message;
+    S.error = error.message;
     render();
   }
 }

@@ -110,17 +110,19 @@
       <label class="fieldlabel" for="source">Link do rolki (opcjonalnie)</label>
       <input class="field" id="source" type="url" inputmode="url" value="${esc(f.link)}" placeholder="https://facebook.com/…">
       <div class="note">${S.canRead
-        ? 'Po naciśnięciu „Odczytaj przepis” zrzuty i opis trafią do Google Gemini, które ułoży składniki i kroki. Zawsze sprawdź wynik przed zapisaniem.'
-        : 'Odczyt zrzutów działa po zalogowaniu (Ustawienia). Wklejony opis uporządkuję na telefonie według nagłówków „Składniki” i „Przygotowanie”.'}</div>
+        ? 'Po naciśnięciu „Odczytaj przepis” zrzuty i opis trafią do Google Gemini, które ułoży składniki i kroki. Gdy AI nie odpowie, odczytam tekst na telefonie. Zawsze sprawdź wynik przed zapisaniem.'
+        : 'Bez logowania odczytam tekst ze zrzutów i opisu na telefonie i ułożę go według nagłówków „Składniki” i „Przygotowanie”. Z logowaniem pomaga AI.'}</div>
       ${S.error ? `<p class="error" role="alert">${esc(S.error)}</p>` : ''}
       <button class="primary" data-action="read" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Przygotowuję zdjęcia…' : 'Odczytaj przepis'}</button>
       <button class="secondary" style="margin-top:12px" data-action="manual" ${S.busy ? 'disabled' : ''}>Wpisz przepis ręcznie</button>`;
   }
 
-  const loading = () => `
+  const loading = S => `
     <div class="empty" aria-live="polite">
       <div class="art" aria-hidden="true">📖</div><div class="spinner" aria-hidden="true"></div>
-      <h1>Czytam przepis…</h1><p>Układam składniki i kroki. To potrwa kilka sekund.</p>
+      <h1>${esc(S.loadingText?.title || 'Czytam przepis…')}</h1>
+      <p>${esc(S.loadingText?.body || 'Układam składniki i kroki. To może potrwać do minuty.')}</p>
+      ${S.loadingText ? '<p class="muted" data-progress></p>' : ''}
       <button class="secondary" data-action="cancel-read">Anuluj</button>
     </div>`;
 

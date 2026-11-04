@@ -51,3 +51,35 @@ test('serwer: rozpoznaje obrazy po zawartości', () => {
   assert.equal(server.imageType(new TextEncoder().encode('<html>')), '');
   assert.throws(() => server.checkSources({ images: [1, 2, 3, 4].map(() => new Uint8Array([0xff, 0xd8, 0xff, 0])) }), /too_many_images/);
 });
+
+test('parseText radzi sobie z tekstem odczytanym ze zrzutu rolki', () => {
+  const ocr = [
+    '12:41 ⚡ 85%',
+    'Szybki sernik na zimno',
+    '✅ 500 g serka mascarpone',
+    '✅ 1 szklanka śmietany 30%',
+    '• 2 łyżki cukru pudru',
+    'Przygotowanie:',
+    'Serek zmiksuj ze śmietaną i',
+    'cukrem na gładką masę.',
+    'Wyłóż na herbatniki i schłodź.',
+    'Lubię to  Komentarz  Udostępnij',
+    '#sernik #deser'
+  ].join('\n');
+  const r = parseText(ocr);
+  assert.equal(r.title, 'Szybki sernik na zimno');
+  assert.deepEqual(r.ingredients, ['500 g serka mascarpone', '1 szklanka śmietany 30%', '2 łyżki cukru pudru']);
+  assert.deepEqual(r.steps, ['Serek zmiksuj ze śmietaną i cukrem na gładką masę.', 'Wyłóż na herbatniki i schłodź.']);
+  assert.ok(r.tags.includes('Ciasta i desery'));
+});
+
+test('parseText: składniki po przecinku w linii nagłówka', () => {
+  const r = parseText('Placki\nSkładniki: mąka, mleko, 2 jajka\nWykonanie: Wymieszaj i smaż.');
+  assert.deepEqual(r.ingredients, ['mąka', 'mleko', '2 jajka']);
+  assert.deepEqual(r.steps, ['Wymieszaj i smaż.']);
+});
+
+test('parseText usuwa ikonki źle odczytane ze zrzutu', () => {
+  const r = parseText('Sernik\nSkładniki:\nV. 500 g sera\n[V. 2 łyżki cukru\n| paczka herbatników\nv 3 jajka\nV/ 1 szklanka mleka');
+  assert.deepEqual(r.ingredients, ['500 g sera', '2 łyżki cukru', 'paczka herbatników', '3 jajka', '1 szklanka mleka']);
+});

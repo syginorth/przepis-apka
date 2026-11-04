@@ -36,25 +36,62 @@
   }
 
   /** Porządkuje wklejony opis według nagłówków „Składniki” i „Przygotowanie”. */
+  const INGREDIENTS_HEAD = /^(składniki|skladniki|potrzebujesz|potrzebne będą|potrzebne beda|lista składników)\b[^:]{0,40}:?\s*/i;
+  const STEPS_HEAD = /^(przygotowanie|sposób przygotowania|sposob przygotowania|sposób wykonania|sposob wykonania|wykonanie|kroki|instrukcja|jak zrobić|jak zrobic|przepis krok po kroku)\b[^:]{0,40}:?\s*/i;
+  const UNIT = /(?<!\p{L})((\d+([,.]\d+)?|½|¼|¾|pół|pol)\s*(g|gr|dag|kg|ml|l|szt|sztuk[aiy]?)(?!\p{L})|(szklan|łyżk|lyzk|łyżecz|lyzecz|szczypt|opakowa|ząb|zab|garść|garsc|kostk|puszk|plaster|pęczek|peczek))/iu;
+  // Napisy z interfejsu Facebooka i śmieci po odczycie zrzutu.
+  const NOISE = /^(lubię to|lubie to|komentarz|udostępnij|udostepnij|wyślij|wyslij|obserwuj|zobacz więcej|zobacz wiecej|… więcej|\.\.\. więcej|reels?|rolki|odtwórz|sponsorowane|\d+\s*(tys\.?|mln)?\s*(wyświetleń|komentarzy|udostępnień|reakcji))\b/i;
+
+  const cleanLine = line => line
+    .replace(/^[\s\-–•*·●○▪►✓✔✅☑️👉🔸🔹⭐️🌟]+/u, '')
+    // Ikonki (✅, •) odczytane ze zrzutu jako „V.”, „[V.”, „|”.
+    .replace(/^(?:[|\[\]{}()<>«»©®@*~=+_\/\\]+\s*|[vVyY][.\/|,]?\s+(?=\d)|[vVyY][.\/|,]\s*)+/, '')
+    .replace(/^\d+[.)]\s+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const isNoise = line => {
+    const letters = (line.match(/\p{L}/gu) || []).length;
+    return line.length < 2 || letters < 2 || letters / line.length < 0.4 || NOISE.test(line) || /^#\S+(\s+#\S+)*$/.test(line);
+  };
+
+  /** Porządkuje wklejony opis albo tekst odczytany ze zrzutu na składniki i kroki (bez AI). */
   function parseText(text) {
-    const lines = String(text || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    if (lines.length < 2) throw new Error('Opis jest zbyt krótki. Dodaj tytuł, składniki i sposób przygotowania albo wpisz przepis ręcznie.');
-    const title = lines.shift().replace(/^tytuł\s*:\s*/i, '').slice(0, 200);
+    const source = String(text || '');
+    const all = source.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    let title = '';
     let section = '';
     let minutes = 0;
     const ingredients = [], steps = [], other = [];
-    for (const raw of lines) {
-      const line = raw.replace(/^[-•*]\s*|^\d+[.)]\s*/, '').trim();
-      if (/^(składniki|skladniki)\s*:?$/i.test(line)) { section = 'ingredients'; continue; }
-      if (/^(przygotowanie|sposób przygotowania|sposob przygotowania|wykonanie|kroki)\s*:?$/i.test(line)) { section = 'steps'; continue; }
-      const time = /^(czas|czas przygotowania)\s*:.*?(\d+)\s*(min|godz|h)/i.exec(line);
-      if (time) { minutes = Number(time[2]) * (/godz|h/i.test(time[3]) ? 60 : 1); continue; }
-      if (section === 'ingredients') ingredients.push(line);
-      else if (section === 'steps') steps.push(line);
+    for (const raw of all) {
+      let line = cleanLine(raw);
+      const time = /(czas( przygotowania| pieczenia)?|⏱️?)\s*:?\s*(ok\.?\s*)?(\d+)\s*(min|godz|h)/i.exec(raw);
+      if (time && !minutes) {
+        minutes = Number(time[4]) * (/godz|h/i.test(time[5]) ? 60 : 1);
+        if (/^(czas|⏱)/i.test(raw.trim())) continue;
+      }
+      let head = INGREDIENTS_HEAD.exec(line);
+      if (head) { section = 'ingredients'; line = line.slice(head[0].length).trim(); }
+      else if ((head = STEPS_HEAD.exec(line))) { section = 'steps'; line = line.slice(head[0].length).trim(); }
+      if (!line || isNoise(line)) continue;
+      line = line.replace(/^tytuł\s*:\s*/i, '');
+      if (!title && !section) { title = line.slice(0, 200); continue; }
+      if (section === 'ingredients') {
+        // „mąka, cukier, jajka” w jednej linii po nagłówku dzielimy na osobne składniki.
+        const parts = head && line.includes(',') ? line.split(/,\s*/) : [line];
+        ingredients.push(...parts.filter(Boolean));
+      } else if (section === 'steps') steps.push(line);
+      else if (UNIT.test(line) && line.length < 90) ingredients.push(line);
       else other.push(line);
     }
-    steps.push(...other);
-    return { title, minutes, minutesEstimated: false, ingredients, steps, tags: guessTags(text, minutes) };
+    // Odczyt zrzutu łamie zdania na kilka linii: sklejamy, gdy następna zaczyna się małą literą.
+    const merged = [];
+    for (const line of [...steps, ...other]) {
+      const last = merged[merged.length - 1];
+      if (last && !/[.!?:]$/.test(last) && /^\p{Ll}/u.test(line)) merged[merged.length - 1] = `${last} ${line}`;
+      else merged.push(line);
+    }
+    if (!title || (!ingredients.length && !merged.length)) throw new Error('Opis jest zbyt krótki. Dodaj tytuł, składniki i sposób przygotowania albo wpisz przepis ręcznie.');
+    return { title, minutes, minutesEstimated: false, ingredients, steps: merged, tags: guessTags(source, minutes) };
   }
 
   const lines = (value, maxLength) => (Array.isArray(value) ? value : [])
